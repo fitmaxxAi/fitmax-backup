@@ -1,117 +1,119 @@
 import streamlit as st
 import pandas as pd
-from random import sample
 import matplotlib.pyplot as plt
 
-# ---------- Load Meals ----------
-meals_df = pd.read_csv("meals.csv")
+st.title("AI Personalized Meal & Workout Planner 💪🍽️")
 
-# ---------- Calorie Calculator ----------
-def calculate_calories(gender, weight, height, age, activity_level):
-    if gender == "Male":
-        bmr = 10 * weight + 6.25 * height - 5 * age + 5
-    else:
-        bmr = 10 * weight + 6.25 * height - 5 * age - 161
+# Load dataset
+meals = pd.read_csv('meals.csv')
 
-    activity_multipliers = {
-        "Sedentary": 1.2,
-        "Lightly Active": 1.375,
-        "Very Active": 1.55,
-    }
-    tdee = bmr * activity_multipliers.get(activity_level, 1.2)
-    return round(tdee)
+# Sidebar for user input
+st.sidebar.header('User Preferences')
+goal = st.sidebar.selectbox('What is your goal?', ['Gain Muscle', 'Maintain Weight', 'Lose Fat'])
+diet_type = st.sidebar.selectbox('Diet Type', ['Veg', 'Non-Veg'])
+activity_level = st.sidebar.selectbox('Activity Level', ['Sedentary', 'Light Exercise', 'Moderate/Heavy Exercise'])
 
-# ---------- Streamlit Page Setup ----------
-st.set_page_config(page_title="AI Fitness Coach", page_icon="🏋️", layout="centered")
-st.title("🏋️ AI Personalized Meal & Workout Recommendation")
-st.markdown("*Smart AI-generated guidance for your muscle-gain journey.*")
+# BMI Calculator
+st.sidebar.header("BMI Calculator (Optional)")
+height = st.sidebar.number_input("Height (cm)", min_value=100, max_value=250, value=170)
+weight = st.sidebar.number_input("Weight (kg)", min_value=30, max_value=200, value=70)
 
-# ---------- Inputs ----------
-st.sidebar.header("🔧 Your Information")
-age = st.sidebar.slider("Age", 15, 80, 25)
-gender = st.sidebar.selectbox("Gender", ["Male", "Female"])
-height = st.sidebar.slider("Height (cm)", 140, 200, 170)
-weight = st.sidebar.slider("Weight (kg)", 40, 120, 70)
-activity_level = st.sidebar.selectbox("Activity Level", ["Sedentary", "Lightly Active", "Very Active"])
-diet = st.sidebar.selectbox("Diet Preference", ["Veg", "Non-Veg"])
+bmi = weight / ((height / 100) ** 2)
+st.sidebar.markdown(f"*Your BMI:* {bmi:.2f}")
 
-if st.sidebar.button("Generate Plan"):
-    # ---------- Calorie Estimate ----------
-    calories = calculate_calories(gender, weight, height, age, activity_level)
-    st.header(f"🔥 Estimated Daily Calorie Need: *{calories} kcal*")
+bmi_status = ""
+if bmi < 18.5:
+    bmi_status = "Underweight"
+elif 18.5 <= bmi < 24.9:
+    bmi_status = "Normal"
+elif 25 <= bmi < 29.9:
+    bmi_status = "Overweight"
+else:
+    bmi_status = "Obese"
 
-    # ---------- Meal Plan ----------
-    st.subheader("🍽 Recommended Meal Plan (Sample)")
-    filtered_meals = meals_df[meals_df["Type"] == diet]
-    suggested_meals = filtered_meals.sample(3)
-    st.dataframe(suggested_meals[["Meal", "Calories", "Protein (g)"]])
+st.sidebar.markdown(f"*Status:* {bmi_status}")
 
-    # ---------- Visual: Macros Pie Chart ----------
-    total_calories = suggested_meals["Calories"].sum()
-    total_protein = suggested_meals["Protein (g)"].sum()
-    carb_ratio = 0.5 * total_calories
-    fat_ratio = 0.2 * total_calories
-    protein_ratio = total_protein * 4  # 1g protein = 4 kcal
-    
-    labels = ['Carbs (approx.)', 'Fats (approx.)', 'Protein (actual)']
-    sizes = [carb_ratio, fat_ratio, protein_ratio]
-    colors = ['#ff9999','#66b3ff','#99ff99']
-    
-    fig, ax = plt.subplots()
-    ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90, colors=colors)
-    ax.axis('equal')
-    st.pyplot(fig)
+# BMI Line Graph Example (Ideal BMI ranges)
+st.subheader("BMI Guidance 📈")
+fig_bmi, ax_bmi = plt.subplots(figsize=(6, 3))
+x_bmi = ['Underweight', 'Normal', 'Overweight', 'Obese']
+y_bmi = [18.5, 24.9, 29.9, 35]
+ax_bmi.plot(x_bmi, y_bmi, marker='o', color='orange')
+ax_bmi.axhline(y=bmi, color='red', linestyle='--', label=f'Your BMI: {bmi:.2f}')
+ax_bmi.legend()
+ax_bmi.set_ylabel('BMI Value')
+st.pyplot(fig_bmi)
 
-    # ---------- Universal Workout Plan (Muscle Gain) ----------
-    st.subheader("🏋️ Muscle-Gain Workout Plan (3 Days a Week)")
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown("### *Day 1: Push*")
-        st.write("""
-        - Bench Press / Dumbbell Press: 4x6-10  
-        - Overhead Shoulder Press: 3x8-12  
-        - Incline Press: 3x8-12  
-        - Lateral Raises: 3x12-15  
-        - Triceps Pushdown / Dips: 3x10-15
-        """)
+# Filter meals by diet type
+filtered_meals = meals[meals['Type'] == diet_type]
 
-    with col2:
-        st.markdown("### *Day 2: Pull*")
-        st.write("""
-        - Pull-ups / Lat Pulldown: 4x6-10  
-        - Barbell / Dumbbell Row: 4x8-12  
-        - Face Pulls: 3x12-15  
-        - Curls: 3x10-15  
-        - Hammer Curls: 3x10-12
-        """)
+# Display meal recommendations
+st.header(f"{goal} - {diet_type} Meal Recommendations 🍱")
+st.dataframe(filtered_meals)
 
-    with col3:
-        st.markdown("### *Day 3: Legs*")
-        st.write("""
-        - Squats: 4x6-10  
-        - Romanian Deadlifts: 4x8-12  
-        - Lunges: 3x10-12  
-        - Leg Press: 3x10-15  
-        - Calf Raises: 3x12-20
-        """)
+# Line Graph: Calories per Meal
+st.subheader("Calories per Meal 📊")
+fig, ax = plt.subplots(figsize=(8, 4))
+ax.plot(filtered_meals['Meal'], filtered_meals['Calories'], marker='o', linestyle='-', color='purple')
+plt.xticks(rotation=90)
+ax.set_ylabel("Calories")
+ax.set_xlabel("Meals")
+st.pyplot(fig)
 
-    # ---------- Notes Section ----------
-    st.subheader("📌 Key Health Notes:")
-    st.markdown("""
-    - *Underweight:* Focus on progressive overload, eat in a calorie surplus.  
-    - *Average:* Combine strength & hypertrophy, track protein intake.  
-    - *Overweight:* Prioritize clean form, manage calories responsibly.
+# Pie Chart: Calories vs Protein
+st.subheader("Nutrient Breakdown (Calories vs Protein) 🍕")
+calories_sum = filtered_meals['Calories'].sum()
+protein_sum = filtered_meals['Protein (g)'].sum()
+
+fig_pie, ax_pie = plt.subplots()
+ax_pie.pie([calories_sum, protein_sum], labels=['Total Calories', 'Total Protein (g)'],
+           autopct='%1.1f%%', startangle=90, colors=['#FF9999','#66B2FF'])
+ax_pie.axis('equal')
+st.pyplot(fig_pie)
+
+# Workout recommendations
+st.header("Workout Routine Recommendations 🏋️‍♂️")
+
+if activity_level == 'Sedentary':
+    st.subheader('Sedentary Routine (Beginners, Office Workers)')
+    st.write("""
+    - 10 min Morning Stretch  
+    - 15 min Walking (Slow pace)  
+    - 10 min Breathing Exercises / Yoga  
+    """)
+elif activity_level == 'Light Exercise':
+    st.subheader('Light Exercise Routine (Home Workouts, No Equipment)')
+    st.write("""
+    - 20 Squats  
+    - 20 Lunges  
+    - 15 Push-ups (Knee supported if needed)  
+    - 20-Min Walk or Light Jog  
+    - 10-Min Light Yoga or Stretch  
+    """)
+else:
+    st.subheader('Moderate/Heavy Routine (Gym / Active Athletes)')
+    st.write("""
+    *Upper Body (3x a week)*  
+    - Bench Press  
+    - Shoulder Press  
+    - Pushups  
+    - Pullups  
+    - Dumbbell Rows  
+
+    *Lower Body (2x a week)*  
+    - Squats  
+    - Deadlifts  
+    - Lunges  
+    - Calf Raises  
+
+    *Core (2x a week)*  
+    - Planks  
+    - Leg Raises  
+    - Russian Twists  
+
+    *Cardio (3x a week)*  
+    - 20-30 Min Run / Cycle  
     """)
 
-    st.subheader("💧 Nutrition & Recovery Tips:")
-    st.markdown("""
-    - *Protein:* 1.6-2.2g per kg of body weight daily  
-    - *Calories:* Eat slightly above maintenance (250-500 surplus)  
-    - *Sleep:* 7-9 hours/night  
-    - *Hydrate:* Proper hydration improves recovery
-    """)
-
-    # ---------- Styling Footer ----------
-    st.markdown("---")
-    st.markdown("<center>Created for AI Exhibition | Simple, Practical, Professional</center>", unsafe_allow_html=True)
+st.success("✅ App Ready for AI Exhibition 🚀")
