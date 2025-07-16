@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 
+st.set_page_config(page_title="AI Personalized Meal & Workout Planner", layout="wide")
 st.title("AI Personalized Meal & Workout Planner 💪🍽️")
 
 # Load dataset
@@ -9,8 +10,9 @@ meals = pd.read_csv('meals.csv')
 
 # Sidebar for user input
 st.sidebar.header('User Preferences')
+gender = st.sidebar.selectbox('Gender', ['Male', 'Female', 'Other'])
 goal = st.sidebar.selectbox('What is your goal?', ['Gain Muscle', 'Maintain Weight', 'Lose Fat'])
-diet_type = st.sidebar.selectbox('Diet Type', ['Veg', 'Non-Veg'])
+diet_type = st.sidebar.selectbox('Diet Type', ['Both', 'Veg', 'Non-Veg'])
 activity_level = st.sidebar.selectbox('Activity Level', ['Sedentary', 'Light Exercise', 'Moderate/Heavy Exercise'])
 
 # BMI Calculator
@@ -33,32 +35,32 @@ else:
 
 st.sidebar.markdown(f"*Status:* {bmi_status}")
 
-# BMI Line Graph Example (Ideal BMI ranges)
-st.subheader("BMI Guidance 📈")
-fig_bmi, ax_bmi = plt.subplots(figsize=(6, 3))
-x_bmi = ['Underweight', 'Normal', 'Overweight', 'Obese']
-y_bmi = [18.5, 24.9, 29.9, 35]
-ax_bmi.plot(x_bmi, y_bmi, marker='o', color='orange')
-ax_bmi.axhline(y=bmi, color='red', linestyle='--', label=f'Your BMI: {bmi:.2f}')
-ax_bmi.legend()
-ax_bmi.set_ylabel('BMI Value')
-st.pyplot(fig_bmi)
-
+# Sleep Tracking
+st.header("Daily Sleep Tracker 😴")
+sleep_hours = st.slider('How many hours did you sleep last night?', min_value=0, max_value=12, value=7)
+if sleep_hours < 6:
+    st.warning("You should aim for at least 7-8 hours of sleep for better recovery.")
+else:
+    st.success("Great! You're getting enough rest.")
 
 # Filter meals by diet type
-filtered_meals = meals[meals['Type'] == diet_type]
+if diet_type == 'Both':
+    filtered_meals = meals
+else:
+    filtered_meals = meals[meals['Type'] == diet_type]
 
 # Display meal recommendations
-st.header(f"{goal} - {diet_type} Meal Recommendations 🍱")
+st.header(f"{goal} Meal Recommendations 🍱 ({diet_type} Meals)")
 st.dataframe(filtered_meals)
 
-# Line Graph: Calories per Meal
+# Line Graph: Calories per Meal (Professional Style)
 st.subheader("Calories per Meal 📊")
-fig, ax = plt.subplots(figsize=(8, 4))
-ax.plot(filtered_meals['Meal'], filtered_meals['Calories'], marker='o', linestyle='-', color='purple')
-plt.xticks(rotation=90)
-ax.set_ylabel("Calories")
-ax.set_xlabel("Meals")
+fig, ax = plt.subplots(figsize=(10, 4))
+ax.plot(filtered_meals['Meal'], filtered_meals['Calories'], marker='o', linestyle='-', color='#4CAF50')
+plt.xticks(rotation=90, fontsize=8)
+ax.set_ylabel("Calories", fontsize=10)
+ax.set_xlabel("Meals", fontsize=10)
+ax.set_title("Calories in Recommended Meals", fontsize=12)
 st.pyplot(fig)
 
 # Pie Chart: Calories vs Protein
@@ -68,52 +70,40 @@ protein_sum = filtered_meals['Protein (g)'].sum()
 
 fig_pie, ax_pie = plt.subplots()
 ax_pie.pie([calories_sum, protein_sum], labels=['Total Calories', 'Total Protein (g)'],
-           autopct='%1.1f%%', startangle=90, colors=['#FF9999','#66B2FF'])
+           autopct='%1.1f%%', startangle=90, colors=['#FF9999', '#66B2FF'])
 ax_pie.axis('equal')
 st.pyplot(fig_pie)
 
-# Workout recommendations
+# Workout Routine Recommendations
 st.header("Workout Routine Recommendations 🏋️‍♂️")
 
 if activity_level == 'Sedentary':
     st.subheader('Sedentary Routine (Beginners, Office Workers)')
-    st.write("""
-    - 10 min Morning Stretch  
-    - 15 min Walking (Slow pace)  
-    - 10 min Breathing Exercises / Yoga  
-    """)
+    sedentary_tasks = ["10 min Morning Stretch", "15 min Walking", "10 min Breathing / Yoga"]
+    completed = [st.checkbox(task) for task in sedentary_tasks]
 elif activity_level == 'Light Exercise':
     st.subheader('Light Exercise Routine (Home Workouts, No Equipment)')
-    st.write("""
-    - 20 Squats  
-    - 20 Lunges  
-    - 15 Push-ups (Knee supported if needed)  
-    - 20-Min Walk or Light Jog  
-    - 10-Min Light Yoga or Stretch  
-    """)
+    light_tasks = ["20 Squats", "20 Lunges", "15 Push-ups (Knee supported)", "20-Min Walk / Jog", "10-Min Light Yoga"]
+    completed = [st.checkbox(task) for task in light_tasks]
 else:
     st.subheader('Moderate/Heavy Routine (Gym / Active Athletes)')
-    st.write("""
-    *Upper Body (3x a week)*  
-    - Bench Press  
-    - Shoulder Press  
-    - Pushups  
-    - Pullups  
-    - Dumbbell Rows  
+    heavy_tasks = ["Bench Press", "Shoulder Press", "Pushups", "Pullups", "Dumbbell Rows", 
+                   "Squats", "Deadlifts", "Lunges", "Calf Raises", 
+                   "Planks", "Leg Raises", "Russian Twists", 
+                   "20-30 Min Run / Cycle"]
+    completed = [st.checkbox(task) for task in heavy_tasks]
 
-    *Lower Body (2x a week)*  
-    - Squats  
-    - Deadlifts  
-    - Lunges  
-    - Calf Raises  
+# BMI Line Graph
+st.subheader("BMI Guidance 📈")
+fig_bmi, ax_bmi = plt.subplots(figsize=(6, 3))
+x_bmi = ['Underweight', 'Normal', 'Overweight', 'Obese']
+y_bmi = [18.5, 24.9, 29.9, 35]
+ax_bmi.plot(x_bmi, y_bmi, marker='o', color='orange', linewidth=2)
+ax_bmi.axhline(y=bmi, color='red', linestyle='--', label=f'Your BMI: {bmi:.2f}')
+ax_bmi.legend()
+ax_bmi.set_ylabel('BMI Value')
+st.pyplot(fig_bmi)
 
-    *Core (2x a week)*  
-    - Planks  
-    - Leg Raises  
-    - Russian Twists  
-
-    *Cardio (3x a week)*  
-    - 20-30 Min Run / Cycle  
-    """)
-
-st.success("✅ App Ready for AI Exhibition 🚀")
+# Footer with Names
+st.markdown("---")
+st.markdown("<h4 style='text-align: center; color: grey;'>Made with ❤️ by <b>Savan, Akash & Athul</b></h4>", unsafe_allow_html=True)
