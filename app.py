@@ -106,5 +106,6 @@ st.pyplot(fig_bmi)
 
 # Footer with Names
 st.markdown("---")
-st.markdown("<h4 style='text-align: center; color: grey;'>Made by <b>Savan,Rehan bomber,Aadil,Akash & Athul</b></h4>", unsafe_allow_html=True)
+st.markdown("<h4 style='text-align: center; color: grey;'>Made by <b>Savan,Rehan,Aadil,Akash & Athul</b></h4>", unsafe_allow_html=True)
+
 
