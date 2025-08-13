@@ -50,18 +50,6 @@ if water_intake < 8:
 else:
     st.success("✅ Awesome! You're staying well hydrated.")
 
-# 🎯 Calorie Tracking
-st.header("🔥 Calorie Tracker")
-
-if goal == 'Gain Muscle':
-    target_calories = 2800
-elif goal == 'Maintain Weight':
-    target_calories = 2200
-else:
-    target_calories = 1800
-
-st.markdown(f"**🎯 Daily Calorie Goal:** {target_calories} kcal")
-
 # Filter meals by diet type
 if diet_type == 'Both':
     filtered_meals = meals
@@ -69,44 +57,21 @@ else:
     filtered_meals = meals[meals['Type'].str.lower() == diet_type.lower()]
 
 # Display Recommended Meals
-st.header(f"🍱 Recommended Meals for Your Goal ({diet_type})")
+st.header(f"🍱 Recommended Meals ({diet_type})")
 st.dataframe(filtered_meals)
 
-# Calculate total calories from recommended meals
-total_calories = filtered_meals['Calories'].sum()
-calorie_diff = target_calories - total_calories
-
-# Calorie Feedback
-if total_calories < target_calories:
-    st.info(f"You're {calorie_diff} kcal below your daily goal. Consider adding more nutrient-rich meals.")
-elif total_calories > target_calories:
-    st.warning(f"You’re {abs(calorie_diff)} kcal over your daily goal. Try reducing portion sizes.")
-else:
-    st.success("Your meals perfectly match your daily calorie goal!")
-
-# 📊 Calories per Meal Chart
-st.subheader("📊 Calories per Meal")
-fig, ax = plt.subplots(figsize=(10, 4))
-ax.plot(filtered_meals['Meal'], filtered_meals['Calories'], marker='o', linestyle='-', color='#4CAF50')
-plt.xticks(rotation=90, fontsize=8)
-ax.set_ylabel("Calories")
-ax.set_title("Calories in Recommended Meals")
-st.pyplot(fig)
-
-# 🧬 Pie Chart: Calories vs Protein
-st.subheader("🍕 Nutrient Breakdown")
-calories_sum = filtered_meals['Calories'].sum()
-protein_sum = filtered_meals['Protein (g)'].sum()
-
-fig_pie, ax_pie = plt.subplots()
-ax_pie.pie([calories_sum, protein_sum], labels=['Total Calories', 'Total Protein (g)'],
-           autopct='%1.1f%%', startangle=90, colors=['#FF9999', '#66B2FF'])
-ax_pie.axis('equal')
-st.pyplot(fig_pie)
+# 📊 Protein per Meal Chart (Cleaner Graph)
+if 'Protein (g)' in filtered_meals.columns:
+    st.subheader("📊 Protein Content per Meal")
+    fig, ax = plt.subplots(figsize=(10, 4))
+    ax.bar(filtered_meals['Meal'], filtered_meals['Protein (g)'], color='#66B2FF')
+    plt.xticks(rotation=90, fontsize=8)
+    ax.set_ylabel("Protein (g)")
+    ax.set_title("Protein in Recommended Meals")
+    st.pyplot(fig)
 
 # 🏋️ Workout Routine
 st.header("🏋️ Workout Routine Recommendations")
-
 if activity_level == 'Sedentary':
     st.subheader("Sedentary Routine (Great for Beginners)")
     tasks = ["10-min Morning Stretch", "15-min Walk", "10-min Breathing or Yoga"]
@@ -122,7 +87,6 @@ else:
         "20–30 Min Run or Cycling"
     ]
 
-# Interactive checklist
 completed_tasks = [st.checkbox(task) for task in tasks]
 
 # 📈 BMI Chart
