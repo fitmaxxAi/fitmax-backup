@@ -3,6 +3,10 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 import random
+import json  # <-- NEW IMPORT for data persistence
+import openai  # <-- NEW IMPORT for AI features
+from dotenv import load_dotenv # <-- NEW IMPORT for API keys
+import os # <-- NEW IMPORT for API keys
 
 # Page configuration
 st.set_page_config(
@@ -11,6 +15,69 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# --- NEW FUNCTION: Load user data from JSON file ---
+def load_user_data():
+    """Loads user data from a JSON file if it exists."""
+    try:
+        with open('user_data.json', 'r') as f:
+            saved_data = json.load(f)
+            return saved_data
+    except FileNotFoundError:
+        return None
+
+# --- NEW FUNCTION: Save user data to JSON file ---
+def save_user_data():
+    """Saves the current session state to a JSON file."""
+    # Define which keys we want to persist
+    keys_to_save = [
+        'name', 'age', 'gender', 'height', 'current_weight', 'goal_weight',
+        'activity_level', 'goal_type', 'health_condition', 'water_intake',
+        'calorie_target', 'protein_target', 'carbs_target', 'fat_target',
+        'daily_calories', 'food_log', 'meals', 'workouts', 'exercises'
+    ]
+    data_to_save = {key: st.session_state.get(key) for key in keys_to_save}
+    
+    with open('user_data.json', 'w') as f:
+        json.dump(data_to_save, f)
+
+# --- NEW FUNCTION: AI-Powered Meal Generation ---
+def generate_ai_meal(meal_type, calories, protein, carbs, fat, goal_type, health_condition):
+    """
+    Uses OpenAI's API to generate a creative meal idea based on parameters.
+    """
+    # Construct a detailed prompt for the AI
+    prompt = f"""
+    Act as an expert nutritionist and chef. Generate a single, specific meal idea for {meal_type}.
+    Nutritional Targets: {calories} calories, {protein}g protein, {carbs}g carbs, {fat}g fat.
+    User's Goal: {goal_type}.
+    Health Consideration: {health_condition}.
+    The response must be ONLY the name of the meal followed by a colon and a very short description.
+    Be creative and specific with ingredients and cooking methods.
+
+    Example: 'Mediterranean Chickpea Salad: Fresh chickpeas with cucumber, cherry tomatoes, feta cheese, kalamata olives, and a lemon-oregano vinaigrette.'
+    """
+    try:
+        # Check if the API key is configured
+        if not openai.api_key:
+            st.error("OpenAI API key not configured. Using template meals.")
+            return f"Template {meal_type} Meal"
+            
+        # Call the OpenAI API
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",  # Use 'gpt-4' for even better results if you have access
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=75,
+            temperature=0.8  # For more creativity
+        )
+        return response.choices[0].message['content'].strip()
+    except openai.error.AuthenticationError:
+        st.error("Invalid OpenAI API key. Check your secrets.toml or .env file.")
+        return f"Template {meal_type} Meal"
+    except Exception as e:
+        st.error(f"An error occurred with AI generation: {e}")
+        # Fallback to template
+        return f"Template {meal_type} Meal"
 
 # Custom CSS for modern UI
 st.markdown("""
@@ -85,6 +152,15 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# --- NEW: Load API Key from Secrets/Environment ---
+# Try to load from Streamlit secrets (for deployment)
+try:
+    openai.api_key = st.secrets["OPENAI_API_KEY"]
+except (KeyError, FileNotFoundError):
+    # If not in secrets, try to load from .env file (for local development)
+    load_dotenv()
+    openai.api_key = os.getenv("OPENAI_API_KEY")
+
 # Initialize session state
 def initialize_session_state():
     default_data = {
@@ -103,23 +179,31 @@ def initialize_session_state():
         'carbs_target': 250,
         'fat_target': 67,
         'daily_calories': 0,
-        'food_log': []
+        'food_log': [],
+        'meals': [],
+        'workouts': [],
+        'exercises': [],
+        'use_ai_meals': False  # <-- NEW: Toggle for AI meal generation
     }
     
-    for key, value in default_data.items():
-        if key not in st.session_state:
+    # --- NEW: Try to load saved data first ---
+    saved_data = load_user_data()
+    if saved_data:
+        # Load all saved values, use defaults if any key is missing
+        for key in default_data.keys():
+            if key in saved_data:
+                st.session_state[key] = saved_data[key]
+            else:
+                st.session_state[key] = default_data[key]
+        st.sidebar.success("Loaded saved data!")
+    else:
+        # First time user, initialize with defaults
+        for key, value in default_data.items():
             st.session_state[key] = value
-    
-    if 'meals' not in st.session_state:
-        st.session_state.meals = []
-    if 'workouts' not in st.session_state:
-        st.session_state.workouts = []
-    if 'exercises' not in st.session_state:
-        st.session_state.exercises = []
 
 initialize_session_state()
 
-# Helper functions
+# Helper functions (Keep your existing calculate_bmr, calculate_tdee, etc.)
 def calculate_bmr(weight, height, age, gender):
     if gender == 'Male':
         return 88.362 + (13.397 * weight) + (4.799 * height) - (5.677 * age)
@@ -195,6 +279,7 @@ def get_food_recommendations(goal_type, health_condition):
     
     return base_recommendations + health_recommendations
 
+# --- UPDATED FUNCTION: Now uses AI if toggle is on ---
 def generate_meal_plan(calorie_target, macro_targets, goal_type, health_condition):
     meals = []
     meal_templates = {
@@ -222,13 +307,28 @@ def generate_meal_plan(calorie_target, macro_targets, goal_type, health_conditio
     distributions = {'Breakfast': 0.25, 'Lunch': 0.35, 'Dinner': 0.30, 'Snack': 0.10}
     
     for meal_type, distribution in distributions.items():
+        meal_cals = round(calorie_target * distribution)
+        meal_protein = round(macro_targets['protein_target'] * distribution)
+        meal_carbs = round(macro_targets['carbs_target'] * distribution)
+        meal_fat = round(macro_targets['fat_target'] * distribution)
+        
+        # --- NEW: Use AI or template based on toggle ---
+        if st.session_state.use_ai_meals:
+            with st.spinner(f'🤖 AI is crafting your {meal_type}...'):
+                meal_name = generate_ai_meal(
+                    meal_type, meal_cals, meal_protein, meal_carbs, meal_fat, 
+                    goal_type, health_condition
+                )
+        else:
+            meal_name = template[meal_type]
+        
         meals.append({
             'meal': meal_type,
-            'name': template[meal_type],
-            'calories': round(calorie_target * distribution),
-            'protein': round(macro_targets['protein_target'] * distribution),
-            'carbs': round(macro_targets['carbs_target'] * distribution),
-            'fat': round(macro_targets['fat_target'] * distribution)
+            'name': meal_name,
+            'calories': meal_cals,
+            'protein': meal_protein,
+            'carbs': meal_carbs,
+            'fat': meal_fat
         })
     
     return meals
@@ -322,12 +422,16 @@ with st.sidebar:
                                       index=["Healthy", "Diabetes", "Hypertension", "Heart Condition"].index(st.session_state.health_condition))
         fitness_level = st.selectbox("Fitness Level", ["Beginner", "Intermediate", "Advanced"], index=0)
         
-        if st.form_submit_button("🚀 Update Profile"):
+        # --- NEW: Toggle for AI Meals ---
+        use_ai = st.checkbox("Use AI for Meal Ideas 🤖", value=st.session_state.use_ai_meals)
+        
+        if st.form_submit_button("🚀 Update Profile & Generate Plan"):
             st.session_state.update({
                 'name': name, 'age': age, 'gender': gender, 'height': height,
                 'current_weight': current_weight, 'goal_weight': goal_weight,
                 'activity_level': activity_level, 'goal_type': goal_type,
-                'health_condition': health_condition
+                'health_condition': health_condition,
+                'use_ai_meals': use_ai  # <-- Save the toggle state
             })
             
             # Recalculate everything
@@ -343,6 +447,7 @@ with st.sidebar:
                 'fat_target': macro_targets['fat_target']
             })
             
+            # Generate new plans
             st.session_state.meals = generate_meal_plan(calorie_target, macro_targets, goal_type, health_condition)
             st.session_state.workouts = generate_workout_plan(goal_type, health_condition, fitness_level)
             
@@ -350,7 +455,9 @@ with st.sidebar:
             if today_workout:
                 st.session_state.exercises = generate_exercises(today_workout['type'])
             
-            st.success("Profile updated successfully!")
+            # --- NEW: Save the updated data ---
+            save_user_data()
+            st.success("Profile updated and saved successfully!")
 
     # Calorie Tracker in Sidebar
     st.markdown("### 📊 Calorie Tracker")
@@ -361,12 +468,21 @@ with st.sidebar:
         if food_name and food_calories > 0:
             st.session_state.food_log.append({'name': food_name, 'calories': food_calories})
             st.session_state.daily_calories += food_calories
+            save_user_data()  # <-- NEW: Save after adding food
             st.success(f"Added {food_name} ({food_calories} kcal)")
     
     st.metric("Today's Calories", f"{st.session_state.daily_calories} / {st.session_state.calorie_target}")
     progress = min(1.0, st.session_state.daily_calories / st.session_state.calorie_target)
     st.progress(progress)
+    
+    # --- NEW: Button to reset daily calories (e.g., for a new day) ---
+    if st.button("🔁 Reset Daily Log"):
+        st.session_state.daily_calories = 0
+        st.session_state.food_log = []
+        save_user_data()
+        st.success("Daily log reset!")
 
+# ... [The rest of your code for tabs (Dashboard, Nutrition, Workouts, Progress) remains exactly the same] ...
 # Main content - Tabs for better organization
 tab1, tab2, tab3, tab4 = st.tabs(["🏠 Dashboard", "🍽️ Nutrition", "💪 Workouts", "📊 Progress"])
 
@@ -417,7 +533,11 @@ with tab1:
             water_progress = min(1.0, st.session_state.water_intake / 8.0)
             st.progress(water_progress)
             st.write(f"**Water Intake:** {st.session_state.water_intake}/8 cups")
-            st.session_state.water_intake = st.slider("Update water intake", 0, 12, st.session_state.water_intake)
+            # Update water intake and save
+            new_water = st.slider("Update water intake", 0, 12, st.session_state.water_intake)
+            if new_water != st.session_state.water_intake:
+                st.session_state.water_intake = new_water
+                save_user_data()
     
     with col2:
         st.markdown('<div class="section-header">💡 Today\'s Summary</div>', unsafe_allow_html=True)
@@ -544,4 +664,3 @@ else:
     - Regular health check-ups
     - Enjoy your food and stay hydrated
     """)
-    
