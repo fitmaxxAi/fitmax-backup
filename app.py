@@ -1,348 +1,497 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-import plotly.express as px
-import plotly.graph_objects as go
-from datetime import datetime, timedelta
 import numpy as np
-import requests
-from io import StringIO
+from datetime import datetime, timedelta
+import random
 
-# Page setup
+# Page configuration
 st.set_page_config(
-    page_title="AI Fitness Assistant",
-    page_icon="💪",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_title="AI Meal & Workout Planner",
+    page_icon="🏋️‍♂️",
+    layout="wide"
 )
 
-# Apply custom CSS
+# Custom CSS
 st.markdown("""
 <style>
-    .main-header {font-size: 3rem; color: #1f77b4; text-align: center;}
-    .subheader {font-size: 1.5rem; color: #2ca02c; border-bottom: 2px solid #ff7f0e; padding-bottom: 0.3rem;}
-    .metric-label {font-weight: bold; color: #7f7f7f;}
-    .metric-value {font-size: 1.2rem; color: #1f77b4;}
-    .success-box {background-color: #d4edda; padding: 15px; border-radius: 5px; border-left: 5px solid #28a745;}
-    .warning-box {background-color: #fff3cd; padding: 15px; border-radius: 5px; border-left: 5px solid #ffc107;}
-    .info-box {background-color: #d1ecf1; padding: 15px; border-radius: 5px; border-left: 5px solid #17a2b8;}
-    .stProgress > div > div > div > div {background-color: #1f77b4;}
-    .food-card {border: 1px solid #ddd; border-radius: 10px; padding: 15px; margin: 10px 0; background: white;}
+    .main-header {
+        font-size: 3rem;
+        color: #2E86AB;
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    .section-header {
+        font-size: 2rem;
+        color: #A23B72;
+        margin-bottom: 1rem;
+    }
+    .metric-card {
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-radius: 10px;
+        border-left: 4px solid #2E86AB;
+        margin-bottom: 1rem;
+    }
+    .progress-container {
+        background-color: #e9ecef;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    .meal-card {
+        background-color: #f0f8ff;
+        padding: 1rem;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+        border-left: 4px solid #4CAF50;
+    }
+    .workout-card {
+        background-color: #fff0f5;
+        padding: 1rem;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+        border-left: 4px solid #FF6B6B;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# App title
-st.markdown('<h1 class="main-header">💪 AI Personalized Fitness Assistant</h1>', unsafe_allow_html=True)
-st.markdown("### Your all-in-one nutrition and workout planning solution")
-
-# Initialize session state for persistence
+# Initialize session state
 if 'user_data' not in st.session_state:
     st.session_state.user_data = {
-        'sleep_history': [],
-        'water_history': [],
-        'workout_history': [],
-        'meal_ratings': {},
-        'favorite_meals': []
+        'age': 30,
+        'gender': 'Male',
+        'height': 175,
+        'current_weight': 70,
+        'goal_weight': 65,
+        'activity_level': 'Moderate',
+        'goal_type': 'Weight Loss',
+        'water_intake': 0,
+        'calorie_target': 2000,
+        'protein_target': 150,
+        'carbs_target': 250,
+        'fat_target': 67
     }
 
-# Load Indian Food Dataset (Sample data - replace with actual Kaggle dataset)
-@st.cache_data
-def load_indian_food_data():
-    # This is sample data - you would replace this with your actual Kaggle dataset
-    # For now, I'm creating a comprehensive sample dataset with Indian foods
-    indian_foods = {
-        'name': [
-            'Masala Dosa', 'Idli with Sambar', 'Paneer Butter Masala', 'Chole Bhature',
-            'Biryani', 'Palak Paneer', 'Dal Tadka', 'Vegetable Pulao',
-            'Upma', 'Pongal', 'Rava Kesari', 'Medu Vada',
-            'Butter Chicken', 'Tandoori Roti', 'Aloo Gobi', 'Rajma Chawal',
-            'Pav Bhaji', 'Vada Pav', 'Misal Pav', 'Dhokla',
-            'Khaman', 'Handvo', 'Thepla', 'Undhiyu'
-        ],
-        'type': [
-            'South Indian', 'South Indian', 'North Indian', 'North Indian',
-            'Hyderabadi', 'North Indian', 'North Indian', 'North Indian',
-            'South Indian', 'South Indian', 'South Indian', 'South Indian',
-            'North Indian', 'North Indian', 'North Indian', 'North Indian',
-            'Street Food', 'Street Food', 'Street Food', 'Gujarati',
-            'Gujarati', 'Gujarati', 'Gujarati', 'Gujarati'
-        ],
-        'category': [
-            'Breakfast', 'Breakfast', 'Main Course', 'Main Course',
-            'Main Course', 'Main Course', 'Main Course', 'Main Course',
-            'Breakfast', 'Breakfast', 'Dessert', 'Breakfast',
-            'Main Course', 'Bread', 'Main Course', 'Main Course',
-            'Snack', 'Snack', 'Snack', 'Snack',
-            'Snack', 'Snack', 'Breakfast', 'Main Course'
-        ],
-        'diet_type': [
-            'Veg', 'Veg', 'Veg', 'Veg',
-            'Non-Veg', 'Veg', 'Veg', 'Veg',
-            'Veg', 'Veg', 'Veg', 'Veg',
-            'Non-Veg', 'Veg', 'Veg', 'Veg',
-            'Veg', 'Veg', 'Veg', 'Veg',
-            'Veg', 'Veg', 'Veg', 'Veg'
-        ],
-        'calories': [280, 180, 420, 550, 480, 320, 250, 380, 
-                    220, 200, 320, 280, 450, 120, 280, 350,
-                    400, 300, 350, 180, 160, 220, 280, 320],
-        'protein_g': [8, 12, 25, 15, 30, 22, 12, 10, 
-                    6, 8, 4, 10, 35, 4, 8, 15,
-                    12, 10, 18, 8, 6, 10, 8, 12],
-        'carbs_g': [45, 30, 25, 75, 60, 25, 40, 65,
-                  35, 35, 65, 40, 20, 20, 45, 60,
-                  60, 45, 50, 30, 25, 35, 45, 50],
-        'fat_g': [8, 3, 30, 20, 18, 20, 8, 12,
-                10, 5, 8, 12, 25, 2, 10, 10,
-                15, 12, 12, 5, 4, 8, 10, 12],
-        'prep_time_min': [30, 20, 40, 45, 60, 35, 25, 30,
-                        15, 25, 20, 30, 50, 10, 30, 40,
-                        35, 20, 40, 30, 25, 35, 20, 50],
-        'region': [
-            'South', 'South', 'North', 'North', 
-            'South', 'North', 'North', 'North',
-            'South', 'South', 'South', 'South',
-            'North', 'North', 'North', 'North',
-            'West', 'West', 'West', 'West',
-            'West', 'West', 'West', 'West'
-        ]
-    }
-    return pd.DataFrame(indian_foods)
+if 'meals' not in st.session_state:
+    st.session_state.meals = []
+if 'workouts' not in st.session_state:
+    st.session_state.workouts = []
+if 'exercises' not in st.session_state:
+    st.session_state.exercises = []
 
-# Load the data
-meals_df = load_indian_food_data()
-
-# Sidebar - User Profile
-with st.sidebar:
-    st.header('👤 User Profile')
-    
-    # User info with columns for better layout
-    col1, col2 = st.columns(2)
-    with col1:
-        name = st.text_input("Name", placeholder="Your Name")
-    with col2:
-        age = st.number_input("Age", min_value=10, max_value=100, value=25)
-    
-    gender = st.selectbox('Gender', ['Male', 'Female', 'Other'])
-    goal = st.selectbox('What is your goal?', ['Gain Muscle', 'Maintain Weight', 'Lose Fat'])
-    diet_type = st.selectbox('Diet Preference', ['Both', 'Veg', 'Non-Veg'])
-    activity_level = st.selectbox('Activity Level', ['Sedentary', 'Light Exercise', 'Moderate', 'Heavy Exercise', 'Athlete'])
-    
-    # Cuisine Preference
-    cuisine_preference = st.multiselect(
-        'Preferred Cuisines',
-        ['North Indian', 'South Indian', 'Street Food', 'Gujarati', 'Hyderabadi'],
-        default=['North Indian', 'South Indian']
-    )
-    
-    # BMI Calculation
-    st.header("📏 Body Metrics")
-    height = st.slider("Height (cm)", min_value=100, max_value=250, value=175)
-    weight = st.slider("Weight (kg)", min_value=30, max_value=200, value=70)
-    
-    # Calculate BMI
-    bmi = weight / ((height / 100) ** 2)
-    bmi_status = ""
-    if bmi < 18.5:
-        bmi_status = "Underweight"
-    elif 18.5 <= bmi < 24.9:
-        bmi_status = "Normal"
-    elif 25 <= bmi < 29.9:
-        bmi_status = "Overweight"
-    else:
-        bmi_status = "Obese"
-    
-    # Display BMI with color coding
-    bmi_color = "#28a745" if bmi_status == "Normal" else "#ffc107" if bmi_status == "Overweight" else "#dc3545"
-    st.markdown(f"<p style='font-size: 1.2rem;'>Your BMI: <span style='color: {bmi_color}; font-weight: bold;'>{bmi:.1f} ({bmi_status})</span></p>", 
-                unsafe_allow_html=True)
-    
-    # Calculate and display recommended daily calories
+# Helper functions
+def calculate_bmr(weight, height, age, gender):
+    """Calculate Basal Metabolic Rate"""
     if gender == 'Male':
-        bmr = 10 * weight + 6.25 * height - 5 * age + 5
+        return 88.362 + (13.397 * weight) + (4.799 * height) - (5.677 * age)
     else:
-        bmr = 10 * weight + 6.25 * height - 5 * age - 161
-    
+        return 447.593 + (9.247 * weight) + (3.098 * height) - (4.330 * age)
+
+def calculate_tdee(bmr, activity_level):
+    """Calculate Total Daily Energy Expenditure"""
     activity_multipliers = {
         'Sedentary': 1.2,
-        'Light Exercise': 1.375,
+        'Light': 1.375,
         'Moderate': 1.55,
-        'Heavy Exercise': 1.725,
-        'Athlete': 1.9
+        'Active': 1.725,
+        'Very Active': 1.9
+    }
+    return bmr * activity_multipliers.get(activity_level, 1.55)
+
+def calculate_calorie_target(current_weight, goal_weight, tdee, goal_type):
+    """Calculate calorie target based on weight goals"""
+    weight_difference = current_weight - goal_weight
+    
+    if goal_type == 'Weight Loss':
+        # Safe weight loss: 0.5-1kg per week (500-1000 calorie deficit)
+        deficit = min(1000, max(500, abs(weight_difference) * 100))
+        return max(1200, tdee - deficit)
+    
+    elif goal_type == 'Weight Gain':
+        # Safe weight gain: 0.25-0.5kg per week (250-500 calorie surplus)
+        surplus = min(500, max(250, abs(weight_difference) * 100))
+        return tdee + surplus
+    
+    else:  # Maintenance
+        return tdee
+
+def calculate_macro_targets(calorie_target, goal_type):
+    """Calculate macronutrient targets"""
+    if goal_type == 'Weight Loss':
+        protein_ratio = 0.35
+        carbs_ratio = 0.40
+        fat_ratio = 0.25
+    elif goal_type == 'Weight Gain':
+        protein_ratio = 0.30
+        carbs_ratio = 0.50
+        fat_ratio = 0.20
+    else:  # Maintenance
+        protein_ratio = 0.25
+        carbs_ratio = 0.50
+        fat_ratio = 0.25
+    
+    protein_cals = calorie_target * protein_ratio
+    carbs_cals = calorie_target * carbs_ratio
+    fat_cals = calorie_target * fat_ratio
+    
+    return {
+        'protein': round(protein_cals / 4),
+        'carbs': round(carbs_cals / 4),
+        'fat': round(fat_cals / 9)
+    }
+
+def generate_meal_plan(calorie_target, macro_targets):
+    """Generate sample meal plan based on calorie target"""
+    meals = []
+    
+    # Breakfast (25% of calories)
+    breakfast_cals = calorie_target * 0.25
+    meals.append({
+        'meal': 'Breakfast',
+        'name': 'Greek Yogurt with Berries and Oats',
+        'calories': round(breakfast_cals),
+        'protein': round(macro_targets['protein'] * 0.25),
+        'carbs': round(macro_targets['carbs'] * 0.25),
+        'fat': round(macro_targets['fat'] * 0.25)
+    })
+    
+    # Lunch (35% of calories)
+    lunch_cals = calorie_target * 0.35
+    meals.append({
+        'meal': 'Lunch',
+        'name': 'Grilled Chicken Salad with Quinoa',
+        'calories': round(lunch_cals),
+        'protein': round(macro_targets['protein'] * 0.35),
+        'carbs': round(macro_targets['carbs'] * 0.35),
+        'fat': round(macro_targets['fat'] * 0.35)
+    })
+    
+    # Dinner (30% of calories)
+    dinner_cals = calorie_target * 0.30
+    meals.append({
+        'meal': 'Dinner',
+        'name': 'Salmon with Sweet Potato and Vegetables',
+        'calories': round(dinner_cals),
+        'protein': round(macro_targets['protein'] * 0.30),
+        'carbs': round(macro_targets['carbs'] * 0.30),
+        'fat': round(macro_targets['fat'] * 0.30)
+    })
+    
+    # Snack (10% of calories)
+    snack_cals = calorie_target * 0.10
+    meals.append({
+        'meal': 'Snack',
+        'name': 'Protein Shake with Almonds',
+        'calories': round(snack_cals),
+        'protein': round(macro_targets['protein'] * 0.10),
+        'carbs': round(macro_targets['carbs'] * 0.10),
+        'fat': round(macro_targets['fat'] * 0.10)
+    })
+    
+    return meals
+
+def generate_workout_plan(goal_type):
+    """Generate sample workout plan"""
+    workouts = []
+    
+    if goal_type == 'Weight Loss':
+        workouts = [
+            {'day': 'Monday', 'type': 'Cardio', 'duration': 45, 'description': 'Running or Cycling', 'intensity': 'High'},
+            {'day': 'Tuesday', 'type': 'Strength', 'duration': 30, 'description': 'Full Body Circuit', 'intensity': 'Medium'},
+            {'day': 'Wednesday', 'type': 'Cardio', 'duration': 45, 'description': 'HIIT Training', 'intensity': 'High'},
+            {'day': 'Thursday', 'type': 'Active Recovery', 'duration': 30, 'description': 'Yoga or Stretching', 'intensity': 'Low'},
+            {'day': 'Friday', 'type': 'Strength', 'duration': 40, 'description': 'Upper Body Focus', 'intensity': 'Medium'},
+            {'day': 'Saturday', 'type': 'Cardio', 'duration': 60, 'description': 'Swimming or Hiking', 'intensity': 'Medium'},
+            {'day': 'Sunday', 'type': 'Rest', 'duration': 0, 'description': 'Complete Rest', 'intensity': 'None'}
+        ]
+    elif goal_type == 'Weight Gain':
+        workouts = [
+            {'day': 'Monday', 'type': 'Strength', 'duration': 60, 'description': 'Chest & Triceps', 'intensity': 'High'},
+            {'day': 'Tuesday', 'type': 'Strength', 'duration': 60, 'description': 'Back & Biceps', 'intensity': 'High'},
+            {'day': 'Wednesday', 'type': 'Cardio', 'duration': 30, 'description': 'Light Cardio', 'intensity': 'Low'},
+            {'day': 'Thursday', 'type': 'Strength', 'duration': 60, 'description': 'Legs & Shoulders', 'intensity': 'High'},
+            {'day': 'Friday', 'type': 'Strength', 'duration': 45, 'description': 'Full Body', 'intensity': 'Medium'},
+            {'day': 'Saturday', 'type': 'Active Recovery', 'duration': 30, 'description': 'Walking or Yoga', 'intensity': 'Low'},
+            {'day': 'Sunday', 'type': 'Rest', 'duration': 0, 'description': 'Complete Rest', 'intensity': 'None'}
+        ]
+    else:  # Maintenance
+        workouts = [
+            {'day': 'Monday', 'type': 'Strength', 'duration': 45, 'description': 'Upper Body', 'intensity': 'Medium'},
+            {'day': 'Tuesday', 'type': 'Cardio', 'duration': 40, 'description': 'Running', 'intensity': 'Medium'},
+            {'day': 'Wednesday', 'type': 'Strength', 'duration': 45, 'description': 'Lower Body', 'intensity': 'Medium'},
+            {'day': 'Thursday', 'type': 'Yoga', 'duration': 60, 'description': 'Flexibility', 'intensity': 'Low'},
+            {'day': 'Friday', 'type': 'Full Body', 'duration': 50, 'description': 'Circuit Training', 'intensity': 'Medium'},
+            {'day': 'Saturday', 'type': 'Outdoor', 'duration': 90, 'description': 'Hiking/Sports', 'intensity': 'High'},
+            {'day': 'Sunday', 'type': 'Rest', 'duration': 0, 'description': 'Complete Rest', 'intensity': 'None'}
+        ]
+    
+    return workouts
+
+def generate_exercises(workout_type):
+    """Generate specific exercises for each workout type"""
+    exercises_db = {
+        'Strength': [
+            'Bench Press: 3 sets x 8-12 reps',
+            'Squats: 4 sets x 8-10 reps',
+            'Deadlifts: 3 sets x 6-8 reps',
+            'Shoulder Press: 3 sets x 10-12 reps',
+            'Pull-ups: 3 sets to failure',
+            'Dumbbell Rows: 3 sets x 10-12 reps'
+        ],
+        'Cardio': [
+            'Treadmill Running: 20-30 minutes',
+            'Stationary Bike: 25-35 minutes',
+            'Elliptical Trainer: 30 minutes',
+            'Jump Rope: 15-20 minutes',
+            'Stair Climber: 20 minutes',
+            'Rowing Machine: 25 minutes'
+        ],
+        'HIIT': [
+            'Burpees: 45 seconds on, 15 seconds off x 5 rounds',
+            'Mountain Climbers: 40 seconds on, 20 seconds off x 4 rounds',
+            'Jump Squats: 30 seconds on, 30 seconds off x 6 rounds',
+            'High Knees: 45 seconds on, 15 seconds off x 5 rounds',
+            'Box Jumps: 40 seconds on, 20 seconds off x 4 rounds'
+        ],
+        'Yoga': [
+            'Sun Salutations: 5 rounds',
+            'Warrior Poses Series',
+            'Downward Dog to Plank Flow',
+            'Tree Pose and Balancing Series',
+            'Childs Pose and Cobra Stretch'
+        ]
     }
     
-    tdee = bmr * activity_multipliers[activity_level]
+    if workout_type in exercises_db:
+        return random.sample(exercises_db[workout_type], 3)
+    return ["Custom exercises based on your fitness level"]
+
+# Main app
+st.markdown('<h1 class="main-header">🏋️‍♂️ AI Meal & Workout Planner</h1>', unsafe_allow_html=True)
+
+# Sidebar for user input
+with st.sidebar:
+    st.header("User Profile")
     
-    if goal == 'Lose Fat':
-        calorie_target = tdee - 500
-    elif goal == 'Gain Muscle':
-        calorie_target = tdee + 500
-    else:
-        calorie_target = tdee
+    with st.form("user_profile"):
+        st.session_state.user_data['age'] = st.slider("Age", 18, 80, st.session_state.user_data['age'])
+        st.session_state.user_data['gender'] = st.selectbox("Gender", ["Male", "Female"], 
+                                                          index=0 if st.session_state.user_data['gender'] == 'Male' else 1)
+        st.session_state.user_data['height'] = st.slider("Height (cm)", 140, 220, st.session_state.user_data['height'])
+        st.session_state.user_data['current_weight'] = st.slider("Current Weight (kg)", 40, 150, st.session_state.user_data['current_weight'])
+        st.session_state.user_data['goal_weight'] = st.slider("Goal Weight (kg)", 40, 150, st.session_state.user_data['goal_weight'])
+        st.session_state.user_data['activity_level'] = st.selectbox(
+            "Activity Level",
+            ["Sedentary", "Light", "Moderate", "Active", "Very Active"],
+            index=["Sedentary", "Light", "Moderate", "Active", "Very Active"].index(st.session_state.user_data['activity_level'])
+        )
+        st.session_state.user_data['goal_type'] = st.selectbox(
+            "Goal Type",
+            ["Weight Loss", "Weight Maintenance", "Weight Gain"],
+            index=["Weight Loss", "Weight Maintenance", "Weight Gain"].index(st.session_state.user_data['goal_type'])
+        )
         
-    st.markdown(f"<div class='info-box'><span class='metric-label'>Daily Calorie Target:</span> <span class='metric-value'>{calorie_target:.0f} kcal</span></div>", 
-                unsafe_allow_html=True)
+        submitted = st.form_submit_button("Update Profile")
+        
+        if submitted:
+            # Recalculate everything
+            bmr = calculate_bmr(
+                st.session_state.user_data['current_weight'],
+                st.session_state.user_data['height'],
+                st.session_state.user_data['age'],
+                st.session_state.user_data['gender']
+            )
+            
+            tdee = calculate_tdee(bmr, st.session_state.user_data['activity_level'])
+            
+            st.session_state.user_data['calorie_target'] = calculate_calorie_target(
+                st.session_state.user_data['current_weight'],
+                st.session_state.user_data['goal_weight'],
+                tdee,
+                st.session_state.user_data['goal_type']
+            )
+            
+            # Calculate macro targets
+            macro_targets = calculate_macro_targets(st.session_state.user_data['calorie_target'], st.session_state.user_data['goal_type'])
+            st.session_state.user_data.update(macro_targets)
+            
+            st.session_state.meals = generate_meal_plan(st.session_state.user_data['calorie_target'], macro_targets)
+            st.session_state.workouts = generate_workout_plan(st.session_state.user_data['goal_type'])
+            
+            # Generate exercises for today's workout
+            today_workout = next((w for w in st.session_state.workouts if w['day'] == datetime.now().strftime('%A')), None)
+            if today_workout:
+                st.session_state.exercises = generate_exercises(today_workout['type'])
+            
+            st.success("Profile updated successfully!")
 
-# Main content area with tabs
-tab1, tab2, tab3, tab4 = st.tabs(["🏠 Dashboard", "🍽️ Nutrition", "💪 Workouts", "📊 Progress"])
+# Main content
+col1, col2 = st.columns([2, 1])
 
-# Filter meals by diet type and cuisine preference
-if diet_type == 'Both':
-    filtered_meals = meals_df[meals_df['type'].isin(cuisine_preference)]
-else:
-    filtered_meals = meals_df[
-        (meals_df['diet_type'].str.lower() == diet_type.lower()) & 
-        (meals_df['type'].isin(cuisine_preference))
-    ]
-
-with tab1:  # Dashboard tab
-    st.markdown('<h2 class="subheader">Daily Overview</h2>', unsafe_allow_html=True)
+with col1:
+    st.markdown('<h2 class="section-header">📊 Your Fitness Overview</h2>', unsafe_allow_html=True)
     
-    # Create metrics columns
+    # Calculate metrics
+    bmr = calculate_bmr(
+        st.session_state.user_data['current_weight'],
+        st.session_state.user_data['height'],
+        st.session_state.user_data['age'],
+        st.session_state.user_data['gender']
+    )
+    
+    tdee = calculate_tdee(bmr, st.session_state.user_data['activity_level'])
+    
+    # Display metrics
+    metric_col1, metric_col2, metric_col3 = st.columns(3)
+    
+    with metric_col1:
+        st.metric("BMR", f"{bmr:.0f} kcal")
+        st.metric("Current Weight", f"{st.session_state.user_data['current_weight']} kg")
+    
+    with metric_col2:
+        st.metric("TDEE", f"{tdee:.0f} kcal")
+        st.metric("Goal Weight", f"{st.session_state.user_data['goal_weight']} kg")
+    
+    with metric_col3:
+        st.metric("Calorie Target", f"{st.session_state.user_data['calorie_target']:.0f} kcal")
+        weight_to_go = st.session_state.user_data['current_weight'] - st.session_state.user_data['goal_weight']
+        st.metric("Weight to Go", f"{abs(weight_to_go):.1f} kg")
+    
+    # Progress tracking
+    st.markdown('<h3 class="section-header">🎯 Progress Tracking</h3>', unsafe_allow_html=True)
+    
+    # Weight progress (safe calculation)
+    max_weight = max(st.session_state.user_data['current_weight'], st.session_state.user_data['goal_weight'])
+    min_weight = min(st.session_state.user_data['current_weight'], st.session_state.user_data['goal_weight'])
+    
+    if max_weight > min_weight:  # Avoid division by zero
+        if st.session_state.user_data['goal_type'] == 'Weight Loss':
+            weight_progress = (max_weight - st.session_state.user_data['current_weight']) / (max_weight - min_weight)
+        elif st.session_state.user_data['goal_type'] == 'Weight Gain':
+            weight_progress = (st.session_state.user_data['current_weight'] - min_weight) / (max_weight - min_weight)
+        else:
+            weight_progress = 0.5
+    else:
+        weight_progress = 1.0
+    
+    # Safe progress value (clamped between 0.0 and 1.0)
+    safe_weight_progress = max(0.0, min(1.0, weight_progress))
+    st.progress(safe_weight_progress)
+    st.caption(f"Weight Goal Progress: {safe_weight_progress * 100:.1f}%")
+    
+    # Water intake tracking
+    st.markdown('<h3 class="section-header">💧 Water Intake</h3>', unsafe_allow_html=True)
+    
+    water_col1, water_col2 = st.columns([2, 1])
+    with water_col1:
+        water_intake = st.slider("Water intake (cups today)", 0, 12, st.session_state.user_data['water_intake'])
+        st.session_state.user_data['water_intake'] = water_intake
+    
+    with water_col2:
+        water_goal = 8  # cups per day
+        water_progress = water_intake / water_goal
+        safe_water_progress = max(0.0, min(1.0, water_progress))
+        st.progress(safe_water_progress)
+        st.caption(f"{water_intake}/8 cups ({safe_water_progress * 100:.0f}%)")
+
+with col2:
+    st.markdown('<h2 class="section-header">🍽️ Today\'s Meal Plan</h2>', unsafe_allow_html=True)
+    
+    for meal in st.session_state.meals:
+        with st.expander(f"🍽️ {meal['meal']}: {meal['name']}"):
+            st.write(f"**Calories:** {meal['calories']} kcal")
+            st.write(f"**Protein:** {meal['protein']}g")
+            st.write(f"**Carbs:** {meal['carbs']}g")
+            st.write(f"**Fat:** {meal['fat']}g")
+    
+    st.markdown('<h2 class="section-header">💪 Today\'s Workout</h2>', unsafe_allow_html=True)
+    
+    today_workout = next((w for w in st.session_state.workouts if w['day'] == datetime.now().strftime('%A')), None)
+    
+    if today_workout:
+        emoji = "🔥" if today_workout['type'] != 'Rest' else "😴"
+        st.markdown(f'<div class="workout-card">', unsafe_allow_html=True)
+        st.write(f"{emoji} **{today_workout['day']}: {today_workout['type']}**")
+        st.write(f"⏰ **Duration:** {today_workout['duration']} minutes")
+        st.write(f"📝 **Description:** {today_workout['description']}")
+        st.write(f"⚡ **Intensity:** {today_workout['intensity']}")
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Show exercises
+        if today_workout['type'] != 'Rest':
+            st.write("**Recommended Exercises:**")
+            for exercise in st.session_state.exercises:
+                st.write(f"• {exercise}")
+    else:
+        st.write("No workout scheduled for today.")
+
+# Nutrition summary
+st.markdown('<h2 class="section-header">📈 Nutrition Summary</h2>', unsafe_allow_html=True)
+
+if st.session_state.meals:
+    total_calories = sum(meal['calories'] for meal in st.session_state.meals)
+    total_protein = sum(meal['protein'] for meal in st.session_state.meals)
+    total_carbs = sum(meal['carbs'] for meal in st.session_state.meals)
+    total_fat = sum(meal['fat'] for meal in st.session_state.meals)
+    
+    # Macro targets
+    protein_target = st.session_state.user_data['protein']
+    carbs_target = st.session_state.user_data['carbs']
+    fat_target = st.session_state.user_data['fat']
+    
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.metric("Calorie Target", f"{calorie_target:.0f} kcal")
+        st.metric("Total Calories", f"{total_calories}", f"{total_calories - st.session_state.user_data['calorie_target']}")
+    
     with col2:
-        st.metric("Protein Target", "120g")  # Simplified for demo
+        protein_diff = total_protein - protein_target
+        st.metric("Protein", f"{total_protein}g / {protein_target}g", f"{protein_diff:+}g")
+        st.progress(max(0.0, min(1.0, total_protein / protein_target)))
+    
     with col3:
-        st.metric("Current BMI", f"{bmi:.1f}")
+        carbs_diff = total_carbs - carbs_target
+        st.metric("Carbs", f"{total_carbs}g / {carbs_target}g", f"{carbs_diff:+}g")
+        st.progress(max(0.0, min(1.0, total_carbs / carbs_target)))
+    
     with col4:
-        st.metric("Goal", goal)
-    
-    # Quick meal suggestions
-    st.markdown("#### 🍽️ Quick Meal Ideas")
-    quick_meals = filtered_meals[filtered_meals['prep_time_min'] <= 30].sample(3)
-    for _, meal in quick_meals.iterrows():
-        st.markdown(f"""
-        <div class='food-card'>
-            <b>{meal['name']}</b> ({meal['type']})<br>
-            ⏱️ {meal['prep_time_min']} min | 🔥 {meal['calories']} kcal | 🥗 {meal['protein_g']}g protein
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # Sleep and water tracking in columns
-    st.markdown("---")
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown('<h3 class="subheader">😴 Sleep Tracking</h3>', unsafe_allow_html=True)
-        sleep_hours = st.slider('Hours slept last night', 0.0, 12.0, 7.0, 0.5, key="sleep_slider")
-        
-        # Add to history
-        if st.button("Log Sleep", key="log_sleep"):
-            st.session_state.user_data['sleep_history'].append({
-                'date': datetime.now().strftime("%Y-%m-%d"),
-                'hours': sleep_hours
-            })
-            st.success("Sleep logged successfully!")
-        
-        # Display sleep quality message
-        if sleep_hours < 6:
-            st.markdown('<div class="warning-box">⚠️ Try to sleep at least 7–8 hours for proper recovery.</div>', unsafe_allow_html=True)
-        elif sleep_hours > 9:
-            st.markdown('<div class="info-box">ℹ️ You\'re getting plenty of sleep. Make sure it\'s quality rest.</div>', unsafe_allow_html=True)
-        else:
-            st.markdown('<div class="success-box">✅ Great! You\'re getting adequate sleep.</div>', unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown('<h3 class="subheader">💧 Hydration Tracker</h3>', unsafe_allow_html=True)
-        water_glasses = st.slider('Glasses of water today (1 glass = 250ml)', 0, 15, 4, key="water_slider")
-        
-        # Add to history
-        if st.button("Log Water", key="log_water"):
-            st.session_state.user_data['water_history'].append({
-                'date': datetime.now().strftime("%Y-%m-%d"),
-                'glasses': water_glasses
-            })
-            st.success("Water intake logged successfully!")
-        
-        # Display water intake progress
-        water_progress = water_glasses / 8  # Assuming 8 glasses is the goal
-        st.progress(water_progress)
-        st.caption(f"{water_glasses}/8 glasses ({water_glasses * 250}ml/{2000}ml)")
-        
-        if water_glasses < 6:
-            st.markdown(f'<div class="warning-box">⚠️ Try to drink more water. You\'re {8 - water_glasses} glasses short of the daily recommendation.</div>', unsafe_allow_html=True)
-        else:
-            st.markdown('<div class="success-box">✅ Awesome! You\'re staying well hydrated.</div>', unsafe_allow_html=True)
+        fat_diff = total_fat - fat_target
+        st.metric("Fat", f"{total_fat}g / {fat_target}g", f"{fat_diff:+}g")
+        st.progress(max(0.0, min(1.0, total_fat / fat_target)))
 
-with tab2:  # Nutrition tab
-    st.markdown('<h2 class="subheader">🍽️ Indian Meal Recommendations</h2>', unsafe_allow_html=True)
-    
-    # Macronutrient distribution
-    st.markdown("#### 📊 Recommended Macronutrient Distribution")
-    if goal == 'Lose Fat':
-        macros = {'Protein': 40, 'Carbs': 30, 'Fat': 30}
-    elif goal == 'Gain Muscle':
-        macros = {'Protein': 35, 'Carbs': 45, 'Fat': 20}
-    else:  # Maintain weight
-        macros = {'Protein': 30, 'Carbs': 40, 'Fat': 30}
-    
-    fig_macros = px.pie(
-        values=list(macros.values()), 
-        names=list(macros.keys()), 
-        title=f"Macronutrient Distribution for {goal}"
-    )
-    st.plotly_chart(fig_macros, use_container_width=True)
-    
-    # Meal filtering options
-    st.markdown("#### 🔍 Filter Meals")
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        meal_category = st.selectbox("Meal Category", ["All", "Breakfast", "Main Course", "Snack", "Dessert"])
-    with col2:
-        min_cals = st.slider("Min Calories", 0, 1000, 150, key="min_cals")
-    with col3:
-        max_cals = st.slider("Max Calories", 0, 1000, 600, key="max_cals", value=600)
-    
-    # Apply filters
-    filtered = filtered_meals.copy()
-    if meal_category != "All":
-        filtered = filtered[filtered['category'] == meal_category]
-    filtered = filtered[(filtered['calories'] >= min_cals) & (filtered['calories'] <= max_cals)]
-    
-    # Display meals
-    st.markdown(f"#### 🍱 Recommended {meal_category} Meals ({len(filtered)} found)")
-    
-    for _, meal in filtered.iterrows():
-        with st.expander(f"{meal['name']} ({meal['type']}) - {meal['calories']} kcal"):
-            col1, col2 = st.columns(2)
-            with col1:
-                st.markdown(f"""
-                **Nutrition Information:**
-                - Calories: {meal['calories']} kcal
-                - Protein: {meal['protein_g']}g
-                - Carbs: {meal['carbs_g']}g
-                - Fat: {meal['fat_g']}g
-                - Prep Time: {meal['prep_time_min']} minutes
-                """)
-            with col2:
-                # Rating system
-                if meal['name'] not in st.session_state.user_data['meal_ratings']:
-                    st.session_state.user_data['meal_ratings'][meal['name']] = 0
-                
-                rating = st.slider(
-                    "How do you like this meal?",
-                    0, 5, st.session_state.user_data['meal_ratings'][meal['name']],
-                    key=f"rating_{meal['name']}"
-                )
-                st.session_state.user_data['meal_ratings'][meal['name']] = rating
-                
-                if st.button(f"Add to Favorites ❤️", key=f"fav_{meal['name']}"):
-                    if meal['name'] not in st.session_state.user_data['favorite_meals']:
-                        st.session_state.user_data['favorite_meals'].append(meal['name'])
-                        st.success("Added to favorites!")
-    
-    # Favorite meals section
-    if st.session_state.user_data['favorite_meals']:
-        st.markdown("#### ❤️ Your Favorite Meals")
-        favorite_meals = meals_df[meals_df['name'].isin(st.session_state.user_data['favorite_meals'])]
-        for _, meal in favorite_meals.iterrows():
-            st.markdown(f"- **{meal['name']}** ({meal['calories']} kcal)")
+# Weekly workout schedule
+st.markdown('<h2 class="section-header">📅 Weekly Workout Schedule</h2>', unsafe_allow_html=True)
 
-# ... (rest of the code for workouts and progress tabs remains the same)
-# Footer
-st.markdown("---")
-st.markdown("<p style='text-align: center; color: grey;'>Made by Savan, Rehan, Aadil, Akash & Athul | AI Fitness Assistant v2.0</p>", unsafe_allow_html=True)
+workout_df = pd.DataFrame(st.session_state.workouts)
+st.dataframe(workout_df, hide_index=True, use_container_width=True)
+
+# Tips based on goals
+st.markdown('<h2 class="section-header">💡 Personalized Tips</h2>', unsafe_allow_html=True)
+
+if st.session_state.user_data['goal_type'] == 'Weight Loss':
+    st.info("""
+    **Weight Loss Tips:**
+    - Focus on protein-rich foods to stay full longer
+    - Incorporate both cardio and strength training
+    - Stay consistent with your calorie deficit
+    - Drink plenty of water before meals
+    - Get 7-9 hours of sleep nightly
+    """)
+elif st.session_state.user_data['goal_type'] == 'Weight Gain':
+    st.info("""
+    **Weight Gain Tips:**
+    - Eat calorie-dense foods like nuts and avocados
+    - Focus on progressive overload in your workouts
+    - Consider protein supplements if needed
+    - Eat every 3-4 hours
+    - Track your progress weekly
+    """)
+else:
+    st.info("""
+    **Maintenance Tips:**
+    - Focus on balanced nutrition
+    - Maintain consistent exercise routine
+    - Listen to your body's hunger cues
+    - Regular health check-ups
+    - Enjoy variety in your diet
+    """)
