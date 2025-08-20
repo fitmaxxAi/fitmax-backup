@@ -55,29 +55,35 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Initialize session state
-if 'user_data' not in st.session_state:
-    st.session_state.user_data = {
-        'age': 30,
-        'gender': 'Male',
-        'height': 175,
-        'current_weight': 70,
-        'goal_weight': 65,
-        'activity_level': 'Moderate',
-        'goal_type': 'Weight Loss',
-        'water_intake': 0,
-        'calorie_target': 2000,
-        'protein_target': 150,
-        'carbs_target': 250,
-        'fat_target': 67
-    }
+# Initialize session state with proper default values
+def initialize_session_state():
+    if 'user_data' not in st.session_state:
+        st.session_state.user_data = {
+            'age': 30,
+            'gender': 'Male',
+            'height': 175,
+            'current_weight': 70,
+            'goal_weight': 65,
+            'activity_level': 'Moderate',
+            'goal_type': 'Weight Loss',
+            'water_intake': 0,
+            'calorie_target': 2000,
+            'protein_target': 150,
+            'carbs_target': 250,
+            'fat_target': 67
+        }
+    
+    if 'meals' not in st.session_state:
+        st.session_state.meals = []
+    
+    if 'workouts' not in st.session_state:
+        st.session_state.workouts = []
+    
+    if 'exercises' not in st.session_state:
+        st.session_state.exercises = []
 
-if 'meals' not in st.session_state:
-    st.session_state.meals = []
-if 'workouts' not in st.session_state:
-    st.session_state.workouts = []
-if 'exercises' not in st.session_state:
-    st.session_state.exercises = []
+# Initialize session state
+initialize_session_state()
 
 # Helper functions
 def calculate_bmr(weight, height, age, gender):
@@ -135,9 +141,9 @@ def calculate_macro_targets(calorie_target, goal_type):
     fat_cals = calorie_target * fat_ratio
     
     return {
-        'protein': round(protein_cals / 4),
-        'carbs': round(carbs_cals / 4),
-        'fat': round(fat_cals / 9)
+        'protein_target': round(protein_cals / 4),
+        'carbs_target': round(carbs_cals / 4),
+        'fat_target': round(fat_cals / 9)
     }
 
 def generate_meal_plan(calorie_target, macro_targets):
@@ -150,9 +156,9 @@ def generate_meal_plan(calorie_target, macro_targets):
         'meal': 'Breakfast',
         'name': 'Greek Yogurt with Berries and Oats',
         'calories': round(breakfast_cals),
-        'protein': round(macro_targets['protein'] * 0.25),
-        'carbs': round(macro_targets['carbs'] * 0.25),
-        'fat': round(macro_targets['fat'] * 0.25)
+        'protein': round(macro_targets['protein_target'] * 0.25),
+        'carbs': round(macro_targets['carbs_target'] * 0.25),
+        'fat': round(macro_targets['fat_target'] * 0.25)
     })
     
     # Lunch (35% of calories)
@@ -161,9 +167,9 @@ def generate_meal_plan(calorie_target, macro_targets):
         'meal': 'Lunch',
         'name': 'Grilled Chicken Salad with Quinoa',
         'calories': round(lunch_cals),
-        'protein': round(macro_targets['protein'] * 0.35),
-        'carbs': round(macro_targets['carbs'] * 0.35),
-        'fat': round(macro_targets['fat'] * 0.35)
+        'protein': round(macro_targets['protein_target'] * 0.35),
+        'carbs': round(macro_targets['carbs_target'] * 0.35),
+        'fat': round(macro_targets['fat_target'] * 0.35)
     })
     
     # Dinner (30% of calories)
@@ -172,9 +178,9 @@ def generate_meal_plan(calorie_target, macro_targets):
         'meal': 'Dinner',
         'name': 'Salmon with Sweet Potato and Vegetables',
         'calories': round(dinner_cals),
-        'protein': round(macro_targets['protein'] * 0.30),
-        'carbs': round(macro_targets['carbs'] * 0.30),
-        'fat': round(macro_targets['fat'] * 0.30)
+        'protein': round(macro_targets['protein_target'] * 0.30),
+        'carbs': round(macro_targets['carbs_target'] * 0.30),
+        'fat': round(macro_targets['fat_target'] * 0.30)
     })
     
     # Snack (10% of calories)
@@ -183,9 +189,9 @@ def generate_meal_plan(calorie_target, macro_targets):
         'meal': 'Snack',
         'name': 'Protein Shake with Almonds',
         'calories': round(snack_cals),
-        'protein': round(macro_targets['protein'] * 0.10),
-        'carbs': round(macro_targets['carbs'] * 0.10),
-        'fat': round(macro_targets['fat'] * 0.10)
+        'protein': round(macro_targets['protein_target'] * 0.10),
+        'carbs': round(macro_targets['carbs_target'] * 0.10),
+        'fat': round(macro_targets['fat_target'] * 0.10)
     })
     
     return meals
@@ -273,50 +279,72 @@ st.markdown('<h1 class="main-header">🏋️‍♂️ AI Meal & Workout Planner<
 with st.sidebar:
     st.header("User Profile")
     
+    # Get current values from session state with safe defaults
+    current_age = st.session_state.user_data.get('age', 30)
+    current_gender = st.session_state.user_data.get('gender', 'Male')
+    current_height = st.session_state.user_data.get('height', 175)
+    current_weight = st.session_state.user_data.get('current_weight', 70)
+    goal_weight = st.session_state.user_data.get('goal_weight', 65)
+    activity_level = st.session_state.user_data.get('activity_level', 'Moderate')
+    goal_type = st.session_state.user_data.get('goal_type', 'Weight Loss')
+    
     with st.form("user_profile"):
-        st.session_state.user_data['age'] = st.slider("Age", 18, 80, st.session_state.user_data['age'])
-        st.session_state.user_data['gender'] = st.selectbox("Gender", ["Male", "Female"], 
-                                                          index=0 if st.session_state.user_data['gender'] == 'Male' else 1)
-        st.session_state.user_data['height'] = st.slider("Height (cm)", 140, 220, st.session_state.user_data['height'])
-        st.session_state.user_data['current_weight'] = st.slider("Current Weight (kg)", 40, 150, st.session_state.user_data['current_weight'])
-        st.session_state.user_data['goal_weight'] = st.slider("Goal Weight (kg)", 40, 150, st.session_state.user_data['goal_weight'])
-        st.session_state.user_data['activity_level'] = st.selectbox(
+        age = st.slider("Age", 18, 80, current_age)
+        gender = st.selectbox("Gender", ["Male", "Female"], index=0 if current_gender == 'Male' else 1)
+        height = st.slider("Height (cm)", 140, 220, current_height)
+        current_weight_val = st.slider("Current Weight (kg)", 40, 150, current_weight)
+        goal_weight_val = st.slider("Goal Weight (kg)", 40, 150, goal_weight)
+        activity_level_val = st.selectbox(
             "Activity Level",
             ["Sedentary", "Light", "Moderate", "Active", "Very Active"],
-            index=["Sedentary", "Light", "Moderate", "Active", "Very Active"].index(st.session_state.user_data['activity_level'])
+            index=["Sedentary", "Light", "Moderate", "Active", "Very Active"].index(activity_level)
         )
-        st.session_state.user_data['goal_type'] = st.selectbox(
+        goal_type_val = st.selectbox(
             "Goal Type",
             ["Weight Loss", "Weight Maintenance", "Weight Gain"],
-            index=["Weight Loss", "Weight Maintenance", "Weight Gain"].index(st.session_state.user_data['goal_type'])
+            index=["Weight Loss", "Weight Maintenance", "Weight Gain"].index(goal_type)
         )
         
         submitted = st.form_submit_button("Update Profile")
         
         if submitted:
+            # Update session state
+            st.session_state.user_data.update({
+                'age': age,
+                'gender': gender,
+                'height': height,
+                'current_weight': current_weight_val,
+                'goal_weight': goal_weight_val,
+                'activity_level': activity_level_val,
+                'goal_type': goal_type_val
+            })
+            
             # Recalculate everything
             bmr = calculate_bmr(
-                st.session_state.user_data['current_weight'],
-                st.session_state.user_data['height'],
-                st.session_state.user_data['age'],
-                st.session_state.user_data['gender']
+                current_weight_val,
+                height,
+                age,
+                gender
             )
             
-            tdee = calculate_tdee(bmr, st.session_state.user_data['activity_level'])
+            tdee = calculate_tdee(bmr, activity_level_val)
             
-            st.session_state.user_data['calorie_target'] = calculate_calorie_target(
-                st.session_state.user_data['current_weight'],
-                st.session_state.user_data['goal_weight'],
+            calorie_target = calculate_calorie_target(
+                current_weight_val,
+                goal_weight_val,
                 tdee,
-                st.session_state.user_data['goal_type']
+                goal_type_val
             )
             
             # Calculate macro targets
-            macro_targets = calculate_macro_targets(st.session_state.user_data['calorie_target'], st.session_state.user_data['goal_type'])
+            macro_targets = calculate_macro_targets(calorie_target, goal_type_val)
+            
+            # Update all values in session state
+            st.session_state.user_data['calorie_target'] = calorie_target
             st.session_state.user_data.update(macro_targets)
             
-            st.session_state.meals = generate_meal_plan(st.session_state.user_data['calorie_target'], macro_targets)
-            st.session_state.workouts = generate_workout_plan(st.session_state.user_data['goal_type'])
+            st.session_state.meals = generate_meal_plan(calorie_target, macro_targets)
+            st.session_state.workouts = generate_workout_plan(goal_type_val)
             
             # Generate exercises for today's workout
             today_workout = next((w for w in st.session_state.workouts if w['day'] == datetime.now().strftime('%A')), None)
@@ -397,33 +425,39 @@ with col1:
 with col2:
     st.markdown('<h2 class="section-header">🍽️ Today\'s Meal Plan</h2>', unsafe_allow_html=True)
     
-    for meal in st.session_state.meals:
-        with st.expander(f"🍽️ {meal['meal']}: {meal['name']}"):
-            st.write(f"**Calories:** {meal['calories']} kcal")
-            st.write(f"**Protein:** {meal['protein']}g")
-            st.write(f"**Carbs:** {meal['carbs']}g")
-            st.write(f"**Fat:** {meal['fat']}g")
+    if st.session_state.meals:
+        for meal in st.session_state.meals:
+            with st.expander(f"🍽️ {meal['meal']}: {meal['name']}"):
+                st.write(f"**Calories:** {meal['calories']} kcal")
+                st.write(f"**Protein:** {meal['protein']}g")
+                st.write(f"**Carbs:** {meal['carbs']}g")
+                st.write(f"**Fat:** {meal['fat']}g")
+    else:
+        st.info("Please update your profile to generate a meal plan.")
     
     st.markdown('<h2 class="section-header">💪 Today\'s Workout</h2>', unsafe_allow_html=True)
     
-    today_workout = next((w for w in st.session_state.workouts if w['day'] == datetime.now().strftime('%A')), None)
-    
-    if today_workout:
-        emoji = "🔥" if today_workout['type'] != 'Rest' else "😴"
-        st.markdown(f'<div class="workout-card">', unsafe_allow_html=True)
-        st.write(f"{emoji} **{today_workout['day']}: {today_workout['type']}**")
-        st.write(f"⏰ **Duration:** {today_workout['duration']} minutes")
-        st.write(f"📝 **Description:** {today_workout['description']}")
-        st.write(f"⚡ **Intensity:** {today_workout['intensity']}")
-        st.markdown('</div>', unsafe_allow_html=True)
+    if st.session_state.workouts:
+        today_workout = next((w for w in st.session_state.workouts if w['day'] == datetime.now().strftime('%A')), None)
         
-        # Show exercises
-        if today_workout['type'] != 'Rest':
-            st.write("**Recommended Exercises:**")
-            for exercise in st.session_state.exercises:
-                st.write(f"• {exercise}")
+        if today_workout:
+            emoji = "🔥" if today_workout['type'] != 'Rest' else "😴"
+            st.markdown(f'<div class="workout-card">', unsafe_allow_html=True)
+            st.write(f"{emoji} **{today_workout['day']}: {today_workout['type']}**")
+            st.write(f"⏰ **Duration:** {today_workout['duration']} minutes")
+            st.write(f"📝 **Description:** {today_workout['description']}")
+            st.write(f"⚡ **Intensity:** {today_workout['intensity']}")
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Show exercises
+            if today_workout['type'] != 'Rest' and st.session_state.exercises:
+                st.write("**Recommended Exercises:**")
+                for exercise in st.session_state.exercises:
+                    st.write(f"• {exercise}")
+        else:
+            st.write("No workout scheduled for today.")
     else:
-        st.write("No workout scheduled for today.")
+        st.info("Please update your profile to generate a workout plan.")
 
 # Nutrition summary
 st.markdown('<h2 class="section-header">📈 Nutrition Summary</h2>', unsafe_allow_html=True)
@@ -435,40 +469,49 @@ if st.session_state.meals:
     total_fat = sum(meal['fat'] for meal in st.session_state.meals)
     
     # Macro targets
-    protein_target = st.session_state.user_data['protein']
-    carbs_target = st.session_state.user_data['carbs']
-    fat_target = st.session_state.user_data['fat']
+    protein_target = st.session_state.user_data.get('protein_target', 150)
+    carbs_target = st.session_state.user_data.get('carbs_target', 250)
+    fat_target = st.session_state.user_data.get('fat_target', 67)
     
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.metric("Total Calories", f"{total_calories}", f"{total_calories - st.session_state.user_data['calorie_target']}")
+        calorie_target_val = st.session_state.user_data.get('calorie_target', 2000)
+        calorie_diff = total_calories - calorie_target_val
+        st.metric("Total Calories", f"{total_calories}", f"{calorie_diff:+}")
     
     with col2:
         protein_diff = total_protein - protein_target
         st.metric("Protein", f"{total_protein}g / {protein_target}g", f"{protein_diff:+}g")
-        st.progress(max(0.0, min(1.0, total_protein / protein_target)))
+        st.progress(max(0.0, min(1.0, total_protein / protein_target if protein_target > 0 else 0)))
     
     with col3:
         carbs_diff = total_carbs - carbs_target
         st.metric("Carbs", f"{total_carbs}g / {carbs_target}g", f"{carbs_diff:+}g")
-        st.progress(max(0.0, min(1.0, total_carbs / carbs_target)))
+        st.progress(max(0.0, min(1.0, total_carbs / carbs_target if carbs_target > 0 else 0)))
     
     with col4:
         fat_diff = total_fat - fat_target
         st.metric("Fat", f"{total_fat}g / {fat_target}g", f"{fat_diff:+}g")
-        st.progress(max(0.0, min(1.0, total_fat / fat_target)))
+        st.progress(max(0.0, min(1.0, total_fat / fat_target if fat_target > 0 else 0)))
+else:
+    st.info("Please update your profile to see nutrition summary.")
 
 # Weekly workout schedule
 st.markdown('<h2 class="section-header">📅 Weekly Workout Schedule</h2>', unsafe_allow_html=True)
 
-workout_df = pd.DataFrame(st.session_state.workouts)
-st.dataframe(workout_df, hide_index=True, use_container_width=True)
+if st.session_state.workouts:
+    workout_df = pd.DataFrame(st.session_state.workouts)
+    st.dataframe(workout_df, hide_index=True, use_container_width=True)
+else:
+    st.info("Please update your profile to generate a workout schedule.")
 
 # Tips based on goals
 st.markdown('<h2 class="section-header">💡 Personalized Tips</h2>', unsafe_allow_html=True)
 
-if st.session_state.user_data['goal_type'] == 'Weight Loss':
+goal_type = st.session_state.user_data.get('goal_type', 'Weight Loss')
+
+if goal_type == 'Weight Loss':
     st.info("""
     **Weight Loss Tips:**
     - Focus on protein-rich foods to stay full longer
@@ -477,7 +520,7 @@ if st.session_state.user_data['goal_type'] == 'Weight Loss':
     - Drink plenty of water before meals
     - Get 7-9 hours of sleep nightly
     """)
-elif st.session_state.user_data['goal_type'] == 'Weight Gain':
+elif goal_type == 'Weight Gain':
     st.info("""
     **Weight Gain Tips:**
     - Eat calorie-dense foods like nuts and avocados
