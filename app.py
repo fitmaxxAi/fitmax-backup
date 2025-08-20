@@ -108,7 +108,7 @@ with st.sidebar:
 # Main content area with tabs
 tab1, tab2, tab3, tab4 = st.tabs(["🏠 Dashboard", "🍽️ Nutrition", "💪 Workouts", "📊 Progress"])
 
-# Load meal dataset (sample data - you would replace with your actual data)
+# Load meal dataset (sample data - you would replace with your actual CSV loading)
 @st.cache_data
 def load_meals():
     # Sample meal data - replace with your actual CSV loading
@@ -166,9 +166,9 @@ with tab1:  # Dashboard tab
         if sleep_hours < 6:
             st.markdown('<div class="warning-box">⚠️ Try to sleep at least 7–8 hours for proper recovery.</div>', unsafe_allow_html=True)
         elif sleep_hours > 9:
-            st.markdown('<div class="info-box">ℹ️ You're getting plenty of sleep. Make sure it's quality rest.</div>', unsafe_allow_html=True)
+            st.markdown('<div class="info-box">ℹ️ You\'re getting plenty of sleep. Make sure it\'s quality rest.</div>', unsafe_allow_html=True)
         else:
-            st.markdown('<div class="success-box">✅ Great! You're getting adequate sleep.</div>', unsafe_allow_html=True)
+            st.markdown('<div class="success-box">✅ Great! You\'re getting adequate sleep.</div>', unsafe_allow_html=True)
     
     with col2:
         st.markdown('<h3 class="subheader">💧 Hydration Tracker</h3>', unsafe_allow_html=True)
