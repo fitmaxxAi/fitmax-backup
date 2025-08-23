@@ -99,7 +99,7 @@ st.markdown("""
     }
     .metric-card {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+        color: red;
         padding: 1.5rem;
         border-radius: 15px;
         margin-bottom: 1rem;
@@ -664,4 +664,5 @@ else:
     - Regular health check-ups
     - Enjoy your food and stay hydrated
     """)
+
 
