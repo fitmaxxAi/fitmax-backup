@@ -405,7 +405,7 @@ with st.sidebar:
     
     with st.form("user_profile"):
         name = st.text_input("Your Name", st.session_state.name)
-        age = st.number_input("Age", min_value=18, max_value=100, value=st.session_state.age)
+        age = st.number_input("Age", min_value=5, max_value=100, value=st.session_state.age)
         gender = st.selectbox("Gender", ["Male", "Female", "Other"], 
                             index=["Male", "Female", "Other"].index(st.session_state.gender))
         height = st.slider("Height (cm)", 140, 220, st.session_state.height)
@@ -664,6 +664,7 @@ else:
     - Regular health check-ups
     - Enjoy your food and stay hydrated
     """)
+
 
 
 
