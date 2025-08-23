@@ -99,7 +99,7 @@ st.markdown("""
     }
     .metric-card {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: red;
+        color: white;
         padding: 1.5rem;
         border-radius: 15px;
         margin-bottom: 1rem;
@@ -107,7 +107,7 @@ st.markdown("""
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
     .meal-card {
-        background: white;
+        background: black;
         padding: 1.2rem;
         border-radius: 12px;
         margin-bottom: 1rem;
@@ -115,7 +115,7 @@ st.markdown("""
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
     .workout-card {
-        background: white;
+        background: black;
         padding: 1.2rem;
         border-radius: 12px;
         margin-bottom: 1rem;
@@ -664,5 +664,6 @@ else:
     - Regular health check-ups
     - Enjoy your food and stay hydrated
     """)
+
 
 
