@@ -17,7 +17,57 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+import streamlit as st
+import pandas as pd
+import requests
+from io import StringIO
 
+# Set page config first
+st.set_page_config(page_title="Meal Tracker", page_icon="🍽️", layout="wide")
+
+st.title("🍽️ Meal Tracker")
+
+# Replace with your actual GitHub URL
+GITHUB_URL = "https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/meals.csv"
+
+try:
+    # First, download the raw file content
+    response = requests.get(GITHUB_URL)
+    response.raise_for_status()  # Check for HTTP errors
+    
+    # Read with error handling - THIS IS THE KEY FIX
+    df = pd.read_csv(
+        StringIO(response.text),
+        on_bad_lines='warn',  # Skip bad lines instead of crashing
+        engine='python',      # Use Python engine for better error handling
+        encoding='utf-8'      # Specify encoding to avoid issues
+    )
+    
+    st.success(f"✅ Successfully loaded {len(df)} meals!")
+    
+    # Display your data
+    st.dataframe(df)
+    
+    # Show basic stats
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total Meals", len(df))
+    col2.metric("Unique Foods", df['Food_Item'].nunique())
+    col3.metric("Last Updated", df['Date'].max())
+    
+except Exception as e:
+    st.error(f"❌ Error loading data: {str(e)}")
+    
+    # Debug information
+    with st.expander("🔧 Debug Information"):
+        st.write("**URL being accessed:**", GITHUB_URL)
+        st.write("**Error details:**", str(e))
+        
+        # Try to show what was actually downloaded
+        try:
+            st.write("**First few lines of raw content:**")
+            st.code(response.text[:500] + "..." if len(response.text) > 500 else response.text)
+        except:
+            st.write("Could not retrieve raw content")
 # --- NEW: Load meals from GitHub CSV ---
 def load_meals_from_github():
     """Loads meal data from a GitHub CSV file."""
@@ -690,6 +740,7 @@ else:
     - Regular health check-ups
     - Enjoy your food and stay hydrated
     """)
+
 
 
 
