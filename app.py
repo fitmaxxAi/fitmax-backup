@@ -28,7 +28,7 @@ st.set_page_config(page_title="Meal Tracker", page_icon="🍽️", layout="wide"
 st.title("🍽️ Meal Tracker")
 
 # Replace with your actual GitHub URL
-GITHUB_URL = "https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/meals.csv"
+GITHUB_URL = "https://github.com/fitmaxxAi/fitmax-backup/blob/main/meals.csv"
 
 try:
     # First, download the raw file content
@@ -740,6 +740,7 @@ else:
     - Regular health check-ups
     - Enjoy your food and stay hydrated
     """)
+
 
 
 
